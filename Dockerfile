@@ -7,7 +7,7 @@ ENV RMAPIREPO github.com/juruen/rmapi
 RUN go get -u ${RMAPIREPO}
 
 
-FROM python:3.7-slim-buster
+FROM python:3.10-slim-buster
 
 # rmapi
 COPY --from=rmapi /go/bin/rmapi /usr/bin/rmapi
@@ -21,9 +21,31 @@ RUN apt-get update \
         libmagickwand-dev \
         pdftk \
         ghostscript \
-	    poppler-utils
+        poppler-utils \
+        build-essential \
+        gcc \
+        g++ \
+        git
 
-RUN pip install --no-cache-dir paper2remarkable
+# see https://github.com/pikepdf/pikepdf
+# see https://github.com/pikepdf/pikepdf/issues/194#issuecomment-1020483657
+# 1. build QPDF from source
+WORKDIR /tmp
+RUN pip install pybind11
+RUN git clone https://github.com/qpdf/qpdf.git \
+    && cd qpdf \
+    && ./autogen.sh \
+    && ./configure \
+    && make \
+    && make install \
+    && ldconfig /usr/local/lib
+
+# 2. build pikepdf from source
+WORKDIR /tmp
+RUN git clone https://github.com/pikepdf/pikepdf && cd pikepdf && pip install .
+
+# 3. install paper2remarkable
+RUN pip install paper2remarkable
 
 RUN useradd -u 1000 -m -U user
 
